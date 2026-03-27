@@ -15,6 +15,33 @@ body {
   padding: 20px;
 }
 
+.page-nav {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.page-link {
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.page-link:hover {
+  background: #eef2ff;
+}
+
+.page-link.active {
+  border-color: #93c5fd;
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
 h1 {
   margin: 0 0 16px;
 }
