@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JSON Arrays Explorer</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <h1>JSON Arrays Explorer</h1>
+
+    <section class="columns">
+      <article class="panel">
+        <h2>Input</h2>
+        <label for="jsonInput" class="sr-only">JSON de entrada</label>
+        <textarea id="jsonInput" placeholder='Cole seu JSON aqui...&#10;Aceita tambem fragmento: "ide": { ... }'></textarea>
+        <button id="processBtn" type="button">Processar</button>
+        <p id="inputStatus" class="status" aria-live="polite"></p>
+      </article>
+
+      <article class="panel">
+        <h2>Somente Arrays (e seus objetos)</h2>
+        <div id="treeContainer" class="tree-container" aria-live="polite">
+          <p class="placeholder">A arvore filtrada aparecera aqui apos processar o JSON.</p>
+        </div>
+      </article>
+
+      <article class="panel">
+        <h2>Selecao</h2>
+        <ul id="selectedList" class="selected-list"></ul>
+      </article>
+    </section>
+
+    <section class="output">
+      <h2>Saida Final Consolidada</h2>
+      <textarea id="outputFinal" readonly placeholder="Os campos selecionados aparecerao aqui."></textarea>
+    </section>
+  </main>
+
+  <script src="listas.js"></script>
+</body>
+</html>
