@@ -41,8 +41,30 @@
       <h2>Saida Final Consolidada</h2>
       <textarea id="outputFinal" readonly placeholder="Os campos selecionados aparecerao aqui."></textarea>
     </section>
+
+    <section class="mysql-section" aria-labelledby="mysqlHeading">
+      <h2 id="mysqlHeading">Campos MySQL (editavel)</h2>
+      <p class="mysql-hint">
+        Uma tabela por grupo (array). A ordem das colunas segue a ordem da selecao. Sincronize para carregar; os
+        contadores mostram selecao vs grade. Use colunas extras para campos que nao existem no JSON.
+      </p>
+      <div class="mysql-actions">
+        <button id="syncMysqlBtn" type="button" class="btn-secondary">Sincronizar com selecao</button>
+        <label class="mysql-option">
+          <input id="includeIdColumn" type="checkbox" checked />
+          Incluir <code>id</code> BIGINT AUTO_INCREMENT
+        </label>
+        <button id="generateMysqlBtn" type="button">Gerar CREATE TABLE</button>
+      </div>
+      <p id="mysqlStats" class="mysql-stats" aria-live="polite"></p>
+      <div id="mysqlTablesContainer" class="mysql-tables-container"></div>
+      <h3 class="mysql-subheading">SQL gerado</h3>
+      <label for="mysqlOutput" class="sr-only">SQL MySQL gerado</label>
+      <textarea id="mysqlOutput" readonly placeholder="Clique em Gerar CREATE TABLE apos sincronizar e editar os campos."></textarea>
+    </section>
   </main>
 
+  <script src="mysql-shared.js"></script>
   <script src="listas.js"></script>
 </body>
 </html>

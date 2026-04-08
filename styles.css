@@ -62,7 +62,9 @@ h2 {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   padding: 12px;
-  min-height: 420px;
+  min-height: 280px;
+  max-height: min(78vh, 820px);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -114,6 +116,8 @@ button:hover {
   padding: 8px;
   background: #fbfdff;
   flex: 1;
+  min-height: 0;
+  max-height: min(42vh, 360px);
 }
 
 .placeholder {
@@ -178,6 +182,8 @@ button:hover {
   padding-left: 18px;
   overflow: auto;
   flex: 1;
+  min-height: 0;
+  max-height: min(42vh, 360px);
 }
 
 .selected-table-title {
@@ -243,12 +249,205 @@ button:hover {
   border: 0;
 }
 
+.mysql-section {
+  margin-top: 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.mysql-hint {
+  margin: 0 0 12px;
+  color: #4b5563;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.mysql-stats {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #14532d;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.mysql-table-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.mysql-table-head h3 {
+  margin: 0;
+  flex: 1;
+  min-width: 200px;
+}
+
+.mysql-add-col-btn,
+.mysql-add-empty-btn {
+  flex-shrink: 0;
+}
+
+.mysql-row-manual {
+  background: #fffbeb;
+}
+
+.mysql-actions-cell {
+  width: 88px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.mysql-remove-extra {
+  padding: 4px 8px;
+  font-size: 0.78rem;
+}
+
+.mysql-empty-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.mysql-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.btn-secondary {
+  background: #4b5563;
+}
+
+.btn-secondary:hover {
+  background: #374151;
+}
+
+.mysql-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.mysql-option code {
+  font-size: 0.85rem;
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.mysql-tables-container {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 12px;
+  max-height: min(52vh, 560px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.mysql-table-block h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-family: Consolas, "Courier New", monospace;
+  color: #1e40af;
+}
+
+.mysql-grid-wrap {
+  overflow: auto;
+  max-height: min(45vh, 420px);
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.mysql-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.mysql-grid th,
+.mysql-grid td {
+  border: 1px solid #e5e7eb;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.mysql-grid th {
+  background: #f3f4f6;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mysql-grid input[type="text"],
+.mysql-grid select {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.mysql-grid .path-cell {
+  max-width: 220px;
+  word-break: break-all;
+  color: #6b7280;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.78rem;
+}
+
+.mysql-grid .size-cell {
+  max-width: 100px;
+}
+
+.mysql-grid .null-cell {
+  text-align: center;
+  width: 56px;
+}
+
+.mysql-placeholder {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.mysql-subheading {
+  margin: 12px 0 8px;
+  font-size: 1rem;
+}
+
+.mysql-section textarea {
+  min-height: 160px;
+}
+
 @media (max-width: 960px) {
   .columns {
     grid-template-columns: 1fr;
   }
 
   .panel {
-    min-height: 320px;
+    min-height: 240px;
+    max-height: none;
+  }
+
+  .tree-container,
+  .selected-list {
+    max-height: min(50vh, 400px);
   }
 }

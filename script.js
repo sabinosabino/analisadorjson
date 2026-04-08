@@ -4,8 +4,44 @@ const treeContainer = document.getElementById("treeContainer");
 const selectedList = document.getElementById("selectedList");
 const outputFinal = document.getElementById("outputFinal");
 const inputStatus = document.getElementById("inputStatus");
+const syncMysqlBtn = document.getElementById("syncMysqlBtn");
+const generateMysqlBtn = document.getElementById("generateMysqlBtn");
+const mysqlTablesContainer = document.getElementById("mysqlTablesContainer");
+const mysqlOutput = document.getElementById("mysqlOutput");
+const includeIdColumn = document.getElementById("includeIdColumn");
+const mysqlStats = document.getElementById("mysqlStats");
 
 const selectedMap = new Map();
+
+/** @type {Record<string, Array<{ path: string; columnName: string; mysqlType: string; size: string; nullable: boolean }>>} */
+const mysqlState = {};
+
+/** Um unico grupo MySQL na tela principal (uma CREATE TABLE). */
+const INDEX_MYSQL_SINGLE_TABLE = "dados";
+
+function mysqlRenderOptions() {
+  return {
+    selectedMap,
+    statsEl: mysqlStats,
+    onAddManual(collection) {
+      MysqlSchema.addManualRow(mysqlState, collection);
+      MysqlSchema.renderTables(mysqlState, mysqlTablesContainer, mysqlRenderOptions());
+    },
+    onAddManualEmpty() {
+      MysqlSchema.addManualRow(mysqlState, INDEX_MYSQL_SINGLE_TABLE);
+      MysqlSchema.renderTables(mysqlState, mysqlTablesContainer, mysqlRenderOptions());
+    },
+  };
+}
+
+function syncMysqlFromSelection() {
+  MysqlSchema.syncFromSelection(selectedMap, mysqlState);
+  MysqlSchema.renderTables(mysqlState, mysqlTablesContainer, mysqlRenderOptions());
+}
+
+function generateMysqlSql() {
+  MysqlSchema.generateSql(mysqlState, mysqlOutput, includeIdColumn.checked);
+}
 
 function getDataType(value) {
   if (value === null) return "Null";
@@ -60,6 +96,7 @@ function renderSelectedList() {
     selectedList.appendChild(li);
   });
   updateConsolidatedOutput();
+  MysqlSchema.updateStatsEl(selectedMap, mysqlState, mysqlStats);
 }
 
 function addSelection(path, value) {
@@ -69,6 +106,7 @@ function addSelection(path, value) {
 
   const item = {
     path,
+    collection: INDEX_MYSQL_SINGLE_TABLE,
     type: getDataType(value),
     value: stringifyValue(value),
   };
@@ -177,10 +215,20 @@ function parseJsonWithFallback(raw) {
   }
 }
 
+syncMysqlBtn.addEventListener("click", () => {
+  syncMysqlFromSelection();
+});
+
+generateMysqlBtn.addEventListener("click", () => {
+  generateMysqlSql();
+});
+
 processBtn.addEventListener("click", () => {
   const raw = jsonInput.value.trim();
   selectedMap.clear();
+  MysqlSchema.clearState(mysqlState);
   renderSelectedList();
+  MysqlSchema.renderTables(mysqlState, mysqlTablesContainer, mysqlRenderOptions());
 
   if (!raw) {
     treeContainer.innerHTML = '<p class="placeholder">Insira um JSON valido para continuar.</p>';
@@ -197,3 +245,5 @@ processBtn.addEventListener("click", () => {
     showStatus("JSON invalido. Verifique a sintaxe.", "error");
   }
 });
+
+MysqlSchema.renderTables(mysqlState, mysqlTablesContainer, mysqlRenderOptions());
