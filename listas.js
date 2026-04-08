@@ -10,9 +10,71 @@ const mysqlTablesContainer = document.getElementById("mysqlTablesContainer");
 const mysqlOutput = document.getElementById("mysqlOutput");
 const includeIdColumn = document.getElementById("includeIdColumn");
 const mysqlStats = document.getElementById("mysqlStats");
+const varcharHintsInput = document.getElementById("varcharHintsInput");
+const reapplyVarcharHintsBtn = document.getElementById("reapplyVarcharHintsBtn");
+const VARCHAR_HINTS_LS = "analisadorjson-varchar-hints";
 
 const selectedMap = new Map();
 let currentArrayPaths = [];
+
+/** Raiz do JSON processado (estado visual na arvore). */
+let listasJsonRoot = null;
+
+function listasMergedLeafCount(arr) {
+  const merged = buildArrayObjectFields(arr);
+  let n = 0;
+  Object.keys(merged).forEach((k) => {
+    const v = merged[k];
+    if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+      n += TreeUi.countLeaves(v);
+    } else {
+      n += 1;
+    }
+  });
+  return n;
+}
+
+function listasMergedSelectedCount(arrayPath, arr, map) {
+  const merged = buildArrayObjectFields(arr);
+  let n = 0;
+  Object.keys(merged).forEach((k) => {
+    const p = joinPath(arrayPath, k);
+    const v = merged[k];
+    if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+      n += TreeUi.countSelectedUnder(p, v, map);
+    } else if (map.has(p)) {
+      n += 1;
+    }
+  });
+  return n;
+}
+
+function syncListasTreeVisuals() {
+  if (listasJsonRoot === null || !treeContainer.querySelector(".tree-list")) return;
+  treeContainer.querySelectorAll(".tree-key[data-tree-path]").forEach((btn) => {
+    const path = btn.dataset.treePath;
+    if (path === undefined) return;
+    btn.classList.remove("tree-key--selected", "tree-key--partial", "tree-key--group-full");
+    const val = TreeUi.getValueAtPath(listasJsonRoot, path);
+    if (Array.isArray(val)) {
+      const total = listasMergedLeafCount(val);
+      if (total > 0) {
+        const sel = listasMergedSelectedCount(path, val, selectedMap);
+        if (sel === total) btn.classList.add("tree-key--group-full");
+        else if (sel > 0) btn.classList.add("tree-key--partial");
+      }
+    } else if (val !== null && typeof val === "object") {
+      const total = TreeUi.countLeaves(val);
+      if (total > 0) {
+        const sel = TreeUi.countSelectedUnder(path, val, selectedMap);
+        if (sel === total) btn.classList.add("tree-key--group-full");
+        else if (sel > 0) btn.classList.add("tree-key--partial");
+      }
+    } else if (selectedMap.has(path)) {
+      btn.classList.add("tree-key--selected");
+    }
+  });
+}
 
 /** @type {Record<string, Array<{ path: string; columnName: string; mysqlType: string; size: string; nullable: boolean }>>} */
 const mysqlState = {};
@@ -138,6 +200,7 @@ function renderSelectedList() {
   });
   updateConsolidatedOutput();
   MysqlSchema.updateStatsEl(selectedMap, mysqlState, mysqlStats);
+  syncListasTreeVisuals();
 }
 
 function getCollectionName(path) {
@@ -162,13 +225,14 @@ function getCollectionName(path) {
 
 function addSelection(path, value) {
   if (Array.isArray(value)) return;
+  const normPath = path.startsWith(".") ? path.slice(1) : path;
   const item = {
-    path: path.startsWith(".") ? path.slice(1) : path,
-    collection: getCollectionName(path),
+    path: normPath,
+    collection: getCollectionName(normPath),
     type: getDataType(value),
     value: stringifyValue(value),
   };
-  selectedMap.set(path, item);
+  selectedMap.set(normPath, item);
 }
 
 function addDescendantSelections(parentPath, value) {
@@ -205,9 +269,14 @@ function buildLeafNode(label, path, value) {
   const li = document.createElement("li");
   li.className = "tree-item";
 
+  const row = document.createElement("div");
+  row.className = "tree-row";
+  row.appendChild(TreeUi.makeToggleSpacer());
+
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "tree-key";
+  btn.dataset.treePath = path;
   btn.textContent = label;
   btn.addEventListener("click", () => {
     addSelection(path, value);
@@ -218,8 +287,9 @@ function buildLeafNode(label, path, value) {
   meta.className = "tree-meta";
   meta.textContent = ` (${getDataType(value)})`;
 
-  li.appendChild(btn);
-  li.appendChild(meta);
+  row.appendChild(btn);
+  row.appendChild(meta);
+  li.appendChild(row);
   return li;
 }
 
@@ -227,9 +297,28 @@ function buildObjectNode(label, path, obj) {
   const li = document.createElement("li");
   li.className = "tree-item";
 
+  const childList = document.createElement("ul");
+  childList.className = "tree-list tree-children";
+  Object.keys(obj).forEach((k) => {
+    const v = obj[k];
+    const childPath = joinPath(path, k);
+    if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+      childList.appendChild(buildObjectNode(k, childPath, v));
+    } else {
+      childList.appendChild(buildLeafNode(k, childPath, v));
+    }
+  });
+
+  const row = document.createElement("div");
+  row.className = "tree-row";
+
+  const toggle = document.createElement("button");
+  TreeUi.attachToggle(toggle, childList);
+
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "tree-key tree-key-object";
+  btn.dataset.treePath = path;
   btn.textContent = label;
   btn.addEventListener("click", () => {
     addDescendantSelections(path, obj);
@@ -240,21 +329,11 @@ function buildObjectNode(label, path, obj) {
   meta.className = "tree-meta";
   meta.textContent = " (Object)";
 
-  li.appendChild(btn);
-  li.appendChild(meta);
-
-  const ul = document.createElement("ul");
-  ul.className = "tree-list";
-  Object.keys(obj).forEach((k) => {
-    const v = obj[k];
-    const childPath = joinPath(path, k);
-    if (v !== null && typeof v === "object" && !Array.isArray(v)) {
-      ul.appendChild(buildObjectNode(k, childPath, v));
-    } else {
-      ul.appendChild(buildLeafNode(k, childPath, v));
-    }
-  });
-  li.appendChild(ul);
+  row.appendChild(toggle);
+  row.appendChild(btn);
+  row.appendChild(meta);
+  li.appendChild(row);
+  li.appendChild(childList);
   return li;
 }
 
@@ -276,27 +355,9 @@ function buildArrayNode(label, path, arr) {
   const li = document.createElement("li");
   li.className = "tree-item";
 
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "tree-key tree-key-array";
-  btn.textContent = label;
-  btn.addEventListener("click", () => {
-    // Ao clicar na lista, adiciona todos os campos dos objetos dela.
-    addArrayObjectSelections(path, arr);
-    renderSelectedList();
-  });
-
-  const meta = document.createElement("span");
-  meta.className = "tree-meta";
-  meta.textContent = ` (Array, itens: ${arr.length})`;
-
-  li.appendChild(btn);
-  li.appendChild(meta);
-
   const ul = document.createElement("ul");
-  ul.className = "tree-list";
+  ul.className = "tree-list tree-children";
 
-  // Sem indice [0], [1]...: exibimos somente os campos do(s) objeto(s) da lista.
   const mergedFields = buildArrayObjectFields(arr);
   Object.keys(mergedFields).forEach((k) => {
     const v = mergedFields[k];
@@ -311,13 +372,41 @@ function buildArrayNode(label, path, arr) {
   if (!ul.childNodes.length) {
     const empty = document.createElement("li");
     empty.className = "tree-item";
+    const row = document.createElement("div");
+    row.className = "tree-row";
+    row.appendChild(TreeUi.makeToggleSpacer());
     const span = document.createElement("span");
     span.className = "tree-meta";
     span.textContent = " (sem itens-objeto para listar)";
-    empty.appendChild(span);
+    row.appendChild(span);
+    empty.appendChild(row);
     ul.appendChild(empty);
   }
 
+  const row = document.createElement("div");
+  row.className = "tree-row";
+
+  const toggle = document.createElement("button");
+  TreeUi.attachToggle(toggle, ul);
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "tree-key tree-key-array";
+  btn.dataset.treePath = path;
+  btn.textContent = label;
+  btn.addEventListener("click", () => {
+    addArrayObjectSelections(path, arr);
+    renderSelectedList();
+  });
+
+  const meta = document.createElement("span");
+  meta.className = "tree-meta";
+  meta.textContent = ` (Array, itens: ${arr.length})`;
+
+  row.appendChild(toggle);
+  row.appendChild(btn);
+  row.appendChild(meta);
+  li.appendChild(row);
   li.appendChild(ul);
   return li;
 }
@@ -339,6 +428,7 @@ function collectArraysOnly(data, parentPath, out) {
 
 function renderFilteredTree(data) {
   treeContainer.innerHTML = "";
+  listasJsonRoot = null;
 
   const arrays = [];
   collectArraysOnly(data, "", arrays);
@@ -354,12 +444,15 @@ function renderFilteredTree(data) {
     return;
   }
 
+  listasJsonRoot = data;
+
   const rootList = document.createElement("ul");
   rootList.className = "tree-list";
   arrays.forEach((entry) => {
     rootList.appendChild(buildArrayNode(entry.path, entry.path === "(root)" ? "" : entry.path, entry.value));
   });
   treeContainer.appendChild(rootList);
+  syncListasTreeVisuals();
 }
 
 syncMysqlBtn.addEventListener("click", () => {
@@ -378,6 +471,7 @@ processBtn.addEventListener("click", () => {
   MysqlSchema.renderTables(mysqlState, mysqlTablesContainer, mysqlRenderOptions());
 
   if (!raw) {
+    listasJsonRoot = null;
     treeContainer.innerHTML = '<p class="placeholder">Insira um JSON valido para continuar.</p>';
     showStatus("Cole um JSON antes de processar.", "error");
     return;
@@ -388,9 +482,31 @@ processBtn.addEventListener("click", () => {
     renderFilteredTree(parsed);
     showStatus("JSON processado com sucesso.", "success");
   } catch (_error) {
+    listasJsonRoot = null;
     treeContainer.innerHTML = '<p class="placeholder">Nao foi possivel processar o JSON informado.</p>';
     showStatus("JSON invalido. Verifique a sintaxe.", "error");
   }
 });
 
+function initVarcharHints() {
+  if (!varcharHintsInput) return;
+  const saved =
+    localStorage.getItem("analisadorjson-field-hints") ?? localStorage.getItem(VARCHAR_HINTS_LS);
+  varcharHintsInput.value =
+    saved !== null ? saved : MysqlSchema.DEFAULT_FIELD_HINTS.trim();
+  MysqlSchema.fieldHintsText = varcharHintsInput.value;
+  varcharHintsInput.addEventListener("input", () => {
+    localStorage.setItem("analisadorjson-field-hints", varcharHintsInput.value);
+    MysqlSchema.fieldHintsText = varcharHintsInput.value;
+  });
+  if (reapplyVarcharHintsBtn) {
+    reapplyVarcharHintsBtn.addEventListener("click", () => {
+      MysqlSchema.fieldHintsText = varcharHintsInput.value;
+      MysqlSchema.reapplyFieldHintsToState(mysqlState);
+      MysqlSchema.renderTables(mysqlState, mysqlTablesContainer, mysqlRenderOptions());
+    });
+  }
+}
+
+initVarcharHints();
 MysqlSchema.renderTables(mysqlState, mysqlTablesContainer, mysqlRenderOptions());

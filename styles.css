@@ -135,15 +135,58 @@ button:hover {
   margin: 4px 0;
 }
 
+.tree-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.tree-toggle {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin-top: 1px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 0.65rem;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tree-toggle:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.tree-toggle-spacer {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: inline-block;
+}
+
+.tree-children--collapsed {
+  display: none;
+}
+
 .tree-key {
   border: none;
   background: transparent;
   color: #111827;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 2px 6px;
   border-radius: 4px;
   text-align: left;
   font-size: 0.9rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .tree-key:hover {
@@ -170,6 +213,29 @@ button:hover {
 
 .tree-key-object:hover {
   background: #dbeafe;
+}
+
+.tree-key.tree-key--selected {
+  background: #d1fae5 !important;
+  border: 1px solid #34d399 !important;
+  color: #065f46;
+  font-weight: 700;
+}
+
+.tree-key.tree-key--group-full {
+  box-shadow: inset 3px 0 0 0 #059669;
+  background: #ecfdf5 !important;
+  border: 1px solid #6ee7b7 !important;
+  color: #064e3b;
+  font-weight: 700;
+}
+
+.tree-key.tree-key--partial {
+  box-shadow: inset 3px 0 0 0 #d97706;
+  background: #fffbeb !important;
+  border: 1px solid #fcd34d !important;
+  color: #92400e;
+  font-weight: 600;
 }
 
 .tree-meta {
@@ -255,6 +321,48 @@ button:hover {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   padding: 12px;
+}
+
+.mysql-hints-panel {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.mysql-hints-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #1e40af;
+  user-select: none;
+}
+
+.mysql-hints-panel summary:hover {
+  color: #1d4ed8;
+}
+
+.mysql-hint-small {
+  margin: 8px 0 10px;
+  font-size: 0.85rem;
+  color: #4b5563;
+  line-height: 1.45;
+}
+
+.mysql-hints-textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.82rem;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.mysql-hints-actions {
+  margin-top: 10px;
 }
 
 .mysql-hint {

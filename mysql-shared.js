@@ -4,6 +4,122 @@
  * Sync preserves selection order; manual rows (not from JSON) stay at the end.
  */
 const MysqlSchema = {
+  /** Colunas fixas em toda tabela gerada (apos as colunas da grade). */
+  STANDARD_TABLE_COLUMNS_SQL: [
+    "  `cadastradoEm` datetime DEFAULT NULL",
+    "  `atualizadoEm` datetime DEFAULT NULL",
+    "  `criadoPor` varchar(50) DEFAULT NULL",
+    "  `atualizadoPor` varchar(50) DEFAULT NULL",
+    "  `excluido` tinyint(4) DEFAULT NULL",
+    "  `excluidoEm` datetime DEFAULT NULL",
+    "  `EmpresaId` varchar(14) DEFAULT NULL",
+  ],
+
+  /**
+   * Atalhos de tipo/tamanho por palavra-chave no caminho ou nome da coluna.
+   *
+   * Formatos:
+   * - Legado: palavra + numero so = VARCHAR(n)  →  cMun 20
+   * - Explicito: palavra TIPO [extra]  →  dhEmi datetime | vBC decimal 15,2 | ativo tinyint 1
+   * Linhas # sao comentario. Igualdade no ultimo segmento ou no nome da coluna vem antes de "contem".
+   */
+  DEFAULT_FIELD_HINTS: `# Legado (so numero = VARCHAR)
+cMun 20
+cUF 2
+xMun 60
+bairro 80
+nro 15
+cep 9
+logradouro 120
+compl 60
+xBairro 60
+xCpl 60
+xLgr 120
+
+# Tipos explicitos (exemplos)
+# dhEmi datetime
+# dEmi date
+# vBC decimal 15,2
+# vNF decimal 15,0
+# pRedBC decimal 7,4
+# ativo tinyint 1
+`,
+
+  fieldHintsText: "",
+
+  parseFieldHintsLine(line) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) return null;
+
+    const explicit = t.match(
+      /^\s*([^\s#]+)\s+(VARCHAR|CHAR|TEXT|TINYTEXT|MEDIUMTEXT|LONGTEXT|INT|BIGINT|SMALLINT|TINYINT|DECIMAL|DOUBLE|FLOAT|DATE|DATETIME|TIMESTAMP|JSON)\b\s*(.*)$/i
+    );
+    if (explicit) {
+      const key = explicit[1].toLowerCase();
+      const mysqlType = explicit[2].toUpperCase();
+      let rest = explicit[3].trim().replace(/\s*,\s*/g, ",");
+
+      let size = "";
+      if (["VARCHAR", "CHAR"].includes(mysqlType)) {
+        const m = rest.match(/^(\d+)/);
+        size = m ? m[1] : "255";
+      } else if (["DECIMAL", "FLOAT", "DOUBLE"].includes(mysqlType)) {
+        const m = rest.match(/^([\d]+\s*,\s*[\d]+)/);
+        if (m) size = m[1].replace(/\s/g, "");
+        else if (mysqlType === "DECIMAL") size = "10,2";
+      } else if (mysqlType === "TINYINT") {
+        const m = rest.match(/^(\d+)/);
+        size = m ? m[1] : "1";
+      }
+      return { key, mysqlType, size };
+    }
+
+    const legacy = t.match(/^\s*([^\s#]+)[\s,]+(\d+)\s*$/);
+    if (legacy) {
+      const key = legacy[1].trim().toLowerCase();
+      const n = parseInt(legacy[2], 10);
+      if (key && !Number.isNaN(n) && n > 0) {
+        return { key, mysqlType: "VARCHAR", size: String(n) };
+      }
+    }
+    return null;
+  },
+
+  parseFieldHints(text) {
+    const rules = [];
+    String(text || "")
+      .split(/\r?\n/)
+      .forEach((line) => {
+        const r = MysqlSchema.parseFieldHintsLine(line);
+        if (r) rules.push(r);
+      });
+    return rules;
+  },
+
+  matchFieldHintRule(path, columnName, rules) {
+    if (!rules.length) return null;
+    const lastSeg = String(path).split(".").pop().toLowerCase();
+    const col = String(columnName).toLowerCase();
+    const pathLower = String(path).toLowerCase();
+
+    for (const r of rules) {
+      if (lastSeg === r.key || col === r.key) {
+        return { mysqlType: r.mysqlType, size: r.size };
+      }
+    }
+    for (const r of rules) {
+      if (pathLower.includes(r.key) || lastSeg.includes(r.key) || col.includes(r.key)) {
+        return { mysqlType: r.mysqlType, size: r.size };
+      }
+    }
+    return null;
+  },
+
+  findFieldHintRule(path, columnName) {
+    const rules = MysqlSchema.parseFieldHints(MysqlSchema.fieldHintsText);
+    return MysqlSchema.matchFieldHintRule(path, columnName, rules);
+  },
+
   MYSQL_TYPES: [
     "VARCHAR",
     "CHAR",
@@ -74,6 +190,12 @@ const MysqlSchema = {
         break;
     }
 
+    const hint = MysqlSchema.findFieldHintRule(item.path, columnName);
+    if (hint) {
+      mysqlType = hint.mysqlType;
+      size = hint.size !== undefined && hint.size !== null ? hint.size : "";
+    }
+
     return {
       path: item.path,
       columnName,
@@ -85,12 +207,14 @@ const MysqlSchema = {
 
   manualRowTemplate() {
     const path = `__manual_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    const columnName = "campo_extra";
+    const hint = MysqlSchema.findFieldHintRule(path, columnName);
     return {
       path,
       manual: true,
-      columnName: "campo_extra",
-      mysqlType: "VARCHAR",
-      size: "255",
+      columnName,
+      mysqlType: hint ? hint.mysqlType : "VARCHAR",
+      size: hint ? hint.size || "" : "255",
       nullable: true,
     };
   },
@@ -100,6 +224,19 @@ const MysqlSchema = {
       mysqlState[collection] = [];
     }
     mysqlState[collection].push(MysqlSchema.manualRowTemplate());
+  },
+
+  /** Reaplica atalhos de tipo (VARCHAR, DECIMAL, DATETIME, etc.) na grade ja carregada. */
+  reapplyFieldHintsToState(mysqlState) {
+    Object.values(mysqlState).forEach((rows) => {
+      rows.forEach((row) => {
+        const hint = MysqlSchema.findFieldHintRule(row.path, row.columnName);
+        if (hint) {
+          row.mysqlType = hint.mysqlType;
+          row.size = hint.size !== undefined && hint.size !== null ? hint.size : "";
+        }
+      });
+    });
   },
 
   typeNeedsSizeField(mysqlType) {
@@ -430,6 +567,9 @@ const MysqlSchema = {
       }
       rows.forEach((row) => {
         colLines.push(`  ${MysqlSchema.buildMysqlColumnSql(row)}`);
+      });
+      MysqlSchema.STANDARD_TABLE_COLUMNS_SQL.forEach((line) => {
+        colLines.push(line);
       });
       if (addId) {
         colLines.push("  PRIMARY KEY (`id`)");

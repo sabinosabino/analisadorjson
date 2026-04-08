@@ -10,8 +10,14 @@ const mysqlTablesContainer = document.getElementById("mysqlTablesContainer");
 const mysqlOutput = document.getElementById("mysqlOutput");
 const includeIdColumn = document.getElementById("includeIdColumn");
 const mysqlStats = document.getElementById("mysqlStats");
+const varcharHintsInput = document.getElementById("varcharHintsInput");
+const reapplyVarcharHintsBtn = document.getElementById("reapplyVarcharHintsBtn");
+const VARCHAR_HINTS_LS = "analisadorjson-varchar-hints";
 
 const selectedMap = new Map();
+
+/** Raiz do JSON atual (para estado visual na arvore). */
+let treeDataRoot = null;
 
 /** @type {Record<string, Array<{ path: string; columnName: string; mysqlType: string; size: string; nullable: boolean }>>} */
 const mysqlState = {};
@@ -97,6 +103,7 @@ function renderSelectedList() {
   });
   updateConsolidatedOutput();
   MysqlSchema.updateStatsEl(selectedMap, mysqlState, mysqlStats);
+  syncTreeVisuals();
 }
 
 function addSelection(path, value) {
@@ -130,14 +137,56 @@ function addDescendantSelections(parentPath, value) {
   });
 }
 
+function syncTreeVisuals() {
+  if (treeDataRoot === null || !treeContainer.querySelector(".tree-list")) return;
+  treeContainer.querySelectorAll(".tree-key[data-tree-path]").forEach((btn) => {
+    const path = btn.dataset.treePath;
+    if (path === undefined) return;
+    btn.classList.remove("tree-key--selected", "tree-key--partial", "tree-key--group-full");
+    const val = TreeUi.getValueAtPath(treeDataRoot, path);
+    if (Array.isArray(val)) {
+      if (selectedMap.has(path)) btn.classList.add("tree-key--selected");
+    } else if (val !== null && typeof val === "object") {
+      const total = TreeUi.countLeaves(val);
+      if (total > 0) {
+        const sel = TreeUi.countSelectedUnder(path, val, selectedMap);
+        if (sel === total) btn.classList.add("tree-key--group-full");
+        else if (sel > 0) btn.classList.add("tree-key--partial");
+      }
+    } else if (selectedMap.has(path)) {
+      btn.classList.add("tree-key--selected");
+    }
+  });
+}
+
 function buildTreeNode(key, value, parentPath) {
   const currentPath = parentPath ? `${parentPath}.${key}` : key;
   const li = document.createElement("li");
   li.className = "tree-item";
 
+  const row = document.createElement("div");
+  row.className = "tree-row";
+
+  const hasObjectChildren = value !== null && typeof value === "object" && !Array.isArray(value);
+
+  let childList = null;
+  if (hasObjectChildren) {
+    childList = document.createElement("ul");
+    childList.className = "tree-list tree-children";
+    Object.keys(value).forEach((childKey) => {
+      childList.appendChild(buildTreeNode(childKey, value[childKey], currentPath));
+    });
+    const toggle = document.createElement("button");
+    TreeUi.attachToggle(toggle, childList);
+    row.appendChild(toggle);
+  } else {
+    row.appendChild(TreeUi.makeToggleSpacer());
+  }
+
   const keyButton = document.createElement("button");
   keyButton.type = "button";
   keyButton.className = "tree-key";
+  keyButton.dataset.treePath = currentPath;
   if (Array.isArray(value)) {
     keyButton.classList.add("tree-key-array");
   } else if (value !== null && typeof value === "object") {
@@ -157,16 +206,10 @@ function buildTreeNode(key, value, parentPath) {
   meta.className = "tree-meta";
   meta.textContent = ` (${getDataType(value)})`;
 
-  li.appendChild(keyButton);
-  li.appendChild(meta);
-
-  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-    const childList = document.createElement("ul");
-    childList.className = "tree-list";
-    Object.keys(value).forEach((childKey) => {
-      childList.appendChild(buildTreeNode(childKey, value[childKey], currentPath));
-    });
-
+  row.appendChild(keyButton);
+  row.appendChild(meta);
+  li.appendChild(row);
+  if (childList) {
     li.appendChild(childList);
   }
 
@@ -175,6 +218,7 @@ function buildTreeNode(key, value, parentPath) {
 
 function renderTree(data) {
   treeContainer.innerHTML = "";
+  treeDataRoot = null;
 
   if (data === null || typeof data !== "object") {
     const message = document.createElement("p");
@@ -183,6 +227,8 @@ function renderTree(data) {
     treeContainer.appendChild(message);
     return;
   }
+
+  treeDataRoot = data;
 
   const rootList = document.createElement("ul");
   rootList.className = "tree-list";
@@ -198,6 +244,7 @@ function renderTree(data) {
   }
 
   treeContainer.appendChild(rootList);
+  syncTreeVisuals();
 }
 
 function showStatus(message, type) {
@@ -231,6 +278,7 @@ processBtn.addEventListener("click", () => {
   MysqlSchema.renderTables(mysqlState, mysqlTablesContainer, mysqlRenderOptions());
 
   if (!raw) {
+    treeDataRoot = null;
     treeContainer.innerHTML = '<p class="placeholder">Insira um JSON valido para continuar.</p>';
     showStatus("Cole um JSON antes de processar.", "error");
     return;
@@ -241,9 +289,31 @@ processBtn.addEventListener("click", () => {
     renderTree(parsed);
     showStatus("JSON processado com sucesso.", "success");
   } catch (_error) {
+    treeDataRoot = null;
     treeContainer.innerHTML = '<p class="placeholder">Nao foi possivel processar o JSON informado.</p>';
     showStatus("JSON invalido. Verifique a sintaxe.", "error");
   }
 });
 
+function initVarcharHints() {
+  if (!varcharHintsInput) return;
+  const saved =
+    localStorage.getItem("analisadorjson-field-hints") ?? localStorage.getItem(VARCHAR_HINTS_LS);
+  varcharHintsInput.value =
+    saved !== null ? saved : MysqlSchema.DEFAULT_FIELD_HINTS.trim();
+  MysqlSchema.fieldHintsText = varcharHintsInput.value;
+  varcharHintsInput.addEventListener("input", () => {
+    localStorage.setItem("analisadorjson-field-hints", varcharHintsInput.value);
+    MysqlSchema.fieldHintsText = varcharHintsInput.value;
+  });
+  if (reapplyVarcharHintsBtn) {
+    reapplyVarcharHintsBtn.addEventListener("click", () => {
+      MysqlSchema.fieldHintsText = varcharHintsInput.value;
+      MysqlSchema.reapplyFieldHintsToState(mysqlState);
+      MysqlSchema.renderTables(mysqlState, mysqlTablesContainer, mysqlRenderOptions());
+    });
+  }
+}
+
+initVarcharHints();
 MysqlSchema.renderTables(mysqlState, mysqlTablesContainer, mysqlRenderOptions());

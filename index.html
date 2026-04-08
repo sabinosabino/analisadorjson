@@ -57,6 +57,23 @@
         </label>
         <button id="generateMysqlBtn" type="button">Gerar CREATE TABLE</button>
       </div>
+      <details class="mysql-hints-panel">
+        <summary>Atalhos de tipo (VARCHAR, DECIMAL, DATETIME…)</summary>
+        <p class="mysql-hint-small">
+          <strong>Legado:</strong> <code>palavra 80</code> ou <code>palavra, 80</code> → VARCHAR(80).
+          <strong>Explicito:</strong> <code>dhEmi datetime</code>, <code>vBC decimal 15,2</code>,
+          <code>ativo tinyint 1</code>. Tipos: VARCHAR, CHAR, TEXT, INT, BIGINT, TINYINT, DECIMAL, DATE, DATETIME,
+          TIMESTAMP, JSON… A palavra casa com o nome da coluna ou trecho do caminho. Linhas <code>#</code> comentario.
+          Salvo neste navegador.
+        </p>
+        <label for="varcharHintsInput" class="sr-only">Lista de atalhos de coluna</label>
+        <textarea id="varcharHintsInput" class="mysql-hints-textarea" rows="12" spellcheck="false"></textarea>
+        <div class="mysql-hints-actions">
+          <button id="reapplyVarcharHintsBtn" type="button" class="btn-secondary">
+            Reaplicar atalhos na grade
+          </button>
+        </div>
+      </details>
       <p id="mysqlStats" class="mysql-stats" aria-live="polite"></p>
       <div id="mysqlTablesContainer" class="mysql-tables-container"></div>
       <h3 class="mysql-subheading">SQL gerado</h3>
@@ -66,6 +83,7 @@
   </main>
 
   <script src="mysql-shared.js"></script>
+  <script src="tree-ui.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
